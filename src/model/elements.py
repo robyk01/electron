@@ -12,7 +12,7 @@ class VoltageSource(Component):
 class Resistor(Component):
     def __init__(self, name, ohms, x, y):
         super().__init__(name, x, y)
-        self.resistence = ohms
+        self.resistance = ohms
 
     def __repr__(self):
         return f"Resistor {self.name}: {self.resistence}"
