@@ -78,3 +78,18 @@ class Solver:
         print(G_matrix)
         print("\n--- Vectorul I ---")
         print(I_vector)
+
+        # solve the system G * V = I
+        try:
+            V_solution = np.linalg.solve(G_matrix, I_vector)
+        except:
+            print("Eroare: Sistemul nu poate fi rezolvat!")
+            return None
+        
+        node_voltage = {}
+        for i, node_id in enumerate(nodes):
+            node_voltage[node_id] = V_solution[i]
+
+        node_voltage[0] = 0.0
+
+        component_currents = {}
