@@ -57,4 +57,24 @@ class Solver:
 
         # intensity vector
         I_vector = np.zeros(node_count)
-        
+
+        for component in self.circuit.components:
+            if isinstance(component, VoltageSource):
+                node_pos = component.nodes[1]
+                node_neg = component.nodes[0]
+
+                if node_pos is None or node_neg is None:
+                    print(f"Avertisment: {component.name} nu e complet conectat!")
+                    continue
+
+                if node_pos != 0:
+                    idx = node_to_index[node_pos]
+                    
+                    G_matrix[idx, :] = 0
+                    G_matrix[idx, idx] = 1
+                    I_vector[idx] = component.voltage
+
+        print("\n--- Matricea G (după surse) ---")
+        print(G_matrix)
+        print("\n--- Vectorul I ---")
+        print(I_vector)
