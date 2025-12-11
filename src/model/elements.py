@@ -15,4 +15,4 @@ class Resistor(Component):
         self.resistance = ohms
 
     def __repr__(self):
-        return f"Resistor {self.name}: {self.resistence}"
+        return f"Resistor {self.name}: {self.resistance}"
