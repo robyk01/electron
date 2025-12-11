@@ -22,10 +22,9 @@ def get_image(nume_fisier):
         return LOADED_IMAGES[nume_fisier]
     cale = os.path.join("assets", "icons", nume_fisier)
     # Daca imaginea nu este in LOADED_IMAGES, o incarcam
-    try:
-        img = pygame.image.load(cale).convert_alpha()
-        LOADED_IMAGES[nume_fisier] = img
-        return img
+    img = pygame.image.load(cale).convert_alpha()
+    LOADED_IMAGES[nume_fisier] = img
+    return img
 
 def draw_grid(screen):
     w = screen.get_width()
