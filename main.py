@@ -5,9 +5,10 @@ import src.settings
 from src.settings import FPS, TITLU, COLORS, GRID_SIZE
 
 # Importuri view si model
-from src.view.interface import draw_grid, draw_sidebar, draw_placed_components, VIEW_MENU_ITEMS
+from src.view.interface import draw_grid, draw_sidebar, draw_wires, draw_placed_components, VIEW_MENU_ITEMS
 from src.model.circuit import Circuit
 from src.model.elements import Resistor, VoltageSource, Capacitor, Transistor
+from src.controller.connection import Connection
 
 
 def main():
@@ -17,16 +18,19 @@ def main():
     src.settings.SIDEBAR_WIDTH = int(info_monitor.current_w * 0.20)
 
     FLAGS_FULLSCREEN = pygame.FULLSCREEN | pygame.HWSURFACE | pygame.DOUBLEBUF
+
     # pygame fullscreen scoate bara de sus
     # pygame hwsurface face ca aplicatia sa ruleze pe GPU nu CPU
     # DOUBLEBUF face doua ecrane, totul se deseneaza intre timp pe cel din spate si la flip ne arata rezultatul
     # | operatie binara pe flaguri, ca sa le avem pe toate 3 setate simultan.
-    screen = pygame.display.set_mode((info_monitor.current_w, info_monitor.current_h), FLAGS_FULLSCREEN)
 
+    screen = pygame.display.set_mode((info_monitor.current_w, info_monitor.current_h), FLAGS_FULLSCREEN)
+    # screen = pygame.display.set_mode((1280, 720)) 
     pygame.display.set_caption(TITLU)
     clock = pygame.time.Clock()
 
     my_circuit = Circuit()
+    connection = Connection(my_circuit)
     # Count ca sa putem avea mai multe piese de acelasi tip cu rezistente si chestii diferite
     count_res = 1
     count_volt = 1
@@ -46,10 +50,19 @@ def main():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     running = False
+                
+                elif event.key == pygame.K_w:
+                    connection.toggle_wire_mode() # toggle wire mode by pressing 'w'
 
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:  # in pygame 1 e click stanga
                     mx, my = pygame.mouse.get_pos()
+
+                    # check wire mode
+                    if connection.wire_mode:
+                        result = connection.handle_click(mx, my)
+                        if result:
+                            continue
 
                     # Prima data verificam daca clickul a fost in meniu
                     if mx < src.settings.SIDEBAR_WIDTH:
@@ -112,19 +125,38 @@ def main():
                     raw_y = my + offset_y
 
                     # mutam prima data ce este vizual
-                    dragged_component.rect.x = round(raw_x / GRID_SIZE) * GRID_SIZE
-                    dragged_component.rect.y = round(raw_y / GRID_SIZE) * GRID_SIZE
+                    new_x = round(raw_x / GRID_SIZE) * GRID_SIZE
+                    new_y = round(raw_y / GRID_SIZE) * GRID_SIZE
 
-                    dragged_component.x = dragged_component.rect.x  # actualizam self.x si self.y la componenta
-                    dragged_component.y = dragged_component.rect.y
+                    dragged_component.x = new_x + 20  # actualizam self.x si self.y la componenta
+                    dragged_component.y = new_y + 20
+
+                    dragged_component.rect.x = new_x
+                    dragged_component.rect.y = new_y
 
             elif event.type == pygame.MOUSEBUTTONUP:
                 dragged_component = None
 
         screen.fill(COLORS["BACKGROUND"])
         draw_grid(screen)
-        draw_placed_components(screen, my_circuit)
+        draw_placed_components(screen, my_circuit, connection)
+        draw_wires(screen, connection)
         draw_sidebar(screen)
+
+        # wire mode visual indicator
+        if connection.wire_mode:
+            font = pygame.font.Font(None, 36)
+            text = font.render("WIRE MODE: ON", True, (0, 255, 0))
+            screen.blit(text, (src.settings.SIDEBAR_WIDTH + 10, 10))
+            
+            font_small = pygame.font.Font(None, 20)
+            inst_text = "Click 2 pini pentru conectare | W = exit"
+            inst_surf = font_small.render(inst_text, True, (255, 255, 255))  
+            
+            inst_rect = inst_surf.get_rect(topleft=(src.settings.SIDEBAR_WIDTH + 10, 50))
+            pygame.draw.rect(screen, (0, 0, 0), inst_rect.inflate(10, 5))  
+            screen.blit(inst_surf, inst_rect)
+
 
         pygame.display.flip()
         clock.tick(FPS)
