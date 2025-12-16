@@ -3,6 +3,7 @@ import os
 # IMPORTAM MODULUL COMPLET pentru a vedea modificarile facute in main.py (latimea dinamica)
 import src.settings
 from src.settings import COLORS, GRID_SIZE
+from src.model.base import Component
 
 pygame.font.init()
 MENU_FONT = pygame.font.SysFont("Arial", 24)
@@ -71,7 +72,7 @@ def draw_sidebar(screen):
         screen.blit(text_surf, (text_x, text_y))
         button_y += button_h + padding
 
-def draw_placed_components(screen, circuit_obj):
+def draw_placed_components(screen, circuit_obj, connection=None):
 
     if not circuit_obj:
         return
@@ -81,3 +82,42 @@ def draw_placed_components(screen, circuit_obj):
             img = get_image(comp.img_name)
             if img:
                 screen.blit(img, (comp.rect.x, comp.rect.y))
+
+            # draw pins
+            if connection and connection.wire_mode:
+                pin_positions = comp.get_pin_positions()
+
+                for i, (px, py) in enumerate(pin_positions):
+                    pin_color = (255, 0, 0) # red
+                    pin_radius = 5
+
+                    if (comp == connection.wire_start_component and i == connection.wire_start_pin):
+                        pin_color = (0, 255, 0) # green (selected)
+                        pin_radius = 7
+                    
+                    # draw pin
+                    pygame.draw.circle(screen, pin_color, (int(px), int(py)), pin_radius)
+
+                    # draw white circle
+                    pygame.draw.circle(screen, (255, 255, 255), (int(px), int(py)), pin_radius - 2)
+
+# draw wires between connected components
+def draw_wires(screen, connection):
+    if not connection:
+        return
+    
+    wire_color = (50, 50, 50) # grey
+    wire_thickness = 3
+
+    for comp1, pin1, comp2, pin2 in connection.wires:
+        pos1 = comp1.get_pin_positions()[pin1]
+        pos2 = comp2.get_pin_positions()[pin2]
+
+        pygame.draw.line(screen, wire_color, pos1, pos2, wire_thickness)
+
+    # temporary line while in wire mode
+    if connection.wire_mode and connection.wire_start_component:
+        start_pos = connection.wire_start_component.get_pin_positions()[connection.wire_start_pin]
+        mx, my = pygame.mouse.get_pos()
+
+        pygame.draw.line(screen, (255, 0, 0), start_pos, (mx, my), 2)
