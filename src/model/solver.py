@@ -82,14 +82,72 @@ class Solver:
         # solve the system G * V = I
         try:
             V_solution = np.linalg.solve(G_matrix, I_vector)
-        except:
+        except np.linalg.LinAlgError:
             print("Eroare: Sistemul nu poate fi rezolvat!")
             return None
         
-        node_voltage = {}
+        print("\n--- Soluția V (tensiuni noduri) ---")
+        print(V_solution)
+
+        # save nodes tension
+        node_voltages = {}
         for i, node_id in enumerate(nodes):
-            node_voltage[node_id] = V_solution[i]
+            node_voltages[node_id] = V_solution[i]
 
-        node_voltage[0] = 0.0
+        # ground node
+        node_voltages[0] = 0.0
 
+        print("\n--- Tensiuni noduri ---")
+        for node_id, voltage in sorted(node_voltages.items()):
+            print(f"Node {node_id}: {voltage:.3f} V")
+
+        # calc current for each component
         component_currents = {}
+
+        for component in self.circuit.components:
+            if isinstance(component, Resistor):
+                node1 = component.nodes[0]
+                node2 = component.nodes[1]
+
+                if node1 is None or node2 is None:
+                    continue
+
+                v1 = node_voltages[node1]
+                v2 = node_voltages[node2]
+
+                # current I = (V1 - V2) / R (Ohm's Law)
+                current = (v1 - v2) / component.resistance
+                component_currents[component.uuid] = current
+
+            # for battery, the current is the sum of currents from the positive node (KCL)
+            elif isinstance(component, VoltageSource):
+                node_pos = component.nodes[1]
+
+                if node_pos is None:
+                    continue
+
+                total_current = 0.0
+                for other_comp in self.circuit.components:
+                    if isinstance(other_comp, Resistor):
+                        if other_comp.nodes[0] == node_pos:
+                            v1 = node_voltages[node_pos]
+                            v2 = node_voltages[other_comp.nodes[1]]
+                            total_current += (v1 - v2) / other_comp.resistance
+                        elif other_comp.nodes[1] == node_pos:
+                            v1 = node_voltages[other_comp.nodes[0]]
+                            v2 = node_voltages[node_pos]
+                            total_current += (v1 - v2) / other_comp.resistance
+                
+                component_currents[component.uuid] = total_current
+            
+        print("\n--- Curenți componente ---")
+        for component in self.circuit.components:
+            current = component_currents.get(component.uuid, 0)
+            print(f"{component.name}: {current:.6f} A")
+        
+        # print results
+        return {
+            "node_voltages": node_voltages,
+            "component_currents": component_currents,
+            "success": True
+        }
