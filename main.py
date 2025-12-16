@@ -8,6 +8,7 @@ from src.settings import FPS, TITLU, COLORS, GRID_SIZE
 from src.view.interface import draw_grid, draw_sidebar, draw_placed_components, VIEW_MENU_ITEMS
 from src.model.circuit import Circuit
 from src.model.elements import Resistor, VoltageSource, Capacitor, Transistor
+from src.controller.connection import Connection
 
 
 def main():
@@ -27,6 +28,7 @@ def main():
     clock = pygame.time.Clock()
 
     my_circuit = Circuit()
+    connection = Connection(my_circuit)
     # Count ca sa putem avea mai multe piese de acelasi tip cu rezistente si chestii diferite
     count_res = 1
     count_volt = 1
@@ -46,6 +48,9 @@ def main():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     running = False
+                
+                elif event.key == pygame.K_w:
+                    connection.toggle_wire_mode() # toggle wire mode by pressing 'w'
 
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:  # in pygame 1 e click stanga
