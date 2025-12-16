@@ -70,3 +70,14 @@ def draw_sidebar(screen):
 
         screen.blit(text_surf, (text_x, text_y))
         button_y += button_h + padding
+
+def draw_placed_components(screen, circuit_obj):
+
+    if not circuit_obj:
+        return
+
+    for comp in circuit_obj.components:
+        if hasattr(comp, "img_name") and hasattr(comp, "rect"):
+            img = get_image(comp.img_name)
+            if img:
+                screen.blit(img, (comp.rect.x, comp.rect.y))
