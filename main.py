@@ -1,10 +1,11 @@
 import pygame
 import sys
 import src.settings
-# ### MODIFICARE 1: Am adaugat GRID_SIZE in lista de importuri
 from src.settings import FPS, TITLU, COLORS, GRID_SIZE
 
 # Importuri view si model
+
+from src.view.popup import EditPopup
 from src.view.interface import (
     draw_grid, draw_sidebar, draw_wires, draw_placed_components, 
     VIEW_MENU_ITEMS, draw_simulation_results, SimulationButton
@@ -28,12 +29,15 @@ def main():
     # | operatie binara pe flaguri, ca sa le avem pe toate 3 setate simultan.
 
     screen = pygame.display.set_mode((info_monitor.current_w, info_monitor.current_h), FLAGS_FULLSCREEN)
-    # screen = pygame.display.set_mode((1280, 720)) 
+    # screen = pygame.display.set_mode((1280, 720))
     pygame.display.set_caption(TITLU)
     clock = pygame.time.Clock()
 
     my_circuit = Circuit()
     connection = Connection(my_circuit)
+
+    # initializam fereastra Popup (ascunsa momentan)
+    popup = EditPopup(info_monitor.current_w, info_monitor.current_h)
 
     # simulation buttons
     simulation_results = None
@@ -63,12 +67,18 @@ def main():
     count_tran = 1
 
     dragged_component = None
+
+    last_click_time = 0
+    double_click_threshold = 500
+
     offset_x = 0
     offset_y = 0
 
     running = True
 
     while running:
+        # luam timpul curent pentru a calcula viteza click-urilor
+        current_time = pygame.time.get_ticks()
         # add buttons
         mouse_pos = pygame.mouse.get_pos()
         simulate_button.update(mouse_pos)
@@ -77,12 +87,31 @@ def main():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+
+            if popup.active:
+                action = popup.handle_event(event)
+
+                if action == "save":
+                    popup.apply_changes()
+                    popup.close()
+                elif action == "delete":
+                    print(f"Deleting {popup.component.name}")
+                    connection.disconnect_component(popup.component)
+                    if popup.component in my_circuit.components:
+                        my_circuit.components.remove(popup.component)
+                    popup.close()
+                elif action == "cancel":
+                    popup.close()
+                continue
+
+            # Codul normal al aplicatiei (cand nu e popup) ---
+
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     running = False
-                
+
                 elif event.key == pygame.K_w:
-                    connection.toggle_wire_mode() # toggle wire mode by pressing 'w'
+                    connection.toggle_wire_mode()  # toggle wire mode by pressing 'w'
 
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:  # in pygame 1 e click stanga
@@ -155,17 +184,26 @@ def main():
 
                             btn_y += 60  # 50 inaltime + 10 padding
 
-                    # Daca clickul nu a fost in meniu, a fost pe masa de lucru, aaa ca vedem daca este pe pozitia vreounei
-                    # componente si daca dam click pe ea incepem actiunea de drag and drop
+                    # Daca clickul nu a fost in meniu, a fost pe masa de lucru
                     else:
                         for comp in reversed(my_circuit.components):
-                            # in reversed() ca sa folosim principiul unei stive, daca avem mai multe piese una peste alta
-                            # o luam pe cea de deasupra
+                            # in reversed() ca sa folosim principiul unei stive
                             if hasattr(comp, 'rect') and comp.rect.collidepoint(mx, my):
+                                # Daca timpul dintre acest click si ultimul e mai mic de 0.5s
+                                if current_time - last_click_time < double_click_threshold:
+                                    print(f"Double click pe {comp.name}")
+                                    popup.open(comp)  # Deschidem fereastra
+                                    dragged_component = None  # Oprim drag-ul ca sa nu mutam piesa cand editam
+                                    break
+
+                                # altfel e un singur click
                                 dragged_component = comp
                                 offset_x = comp.rect.x - mx
                                 offset_y = comp.rect.y - my
                                 break
+
+                        # Actualizam timpul ultimului click
+                        last_click_time = current_time
 
             elif event.type == pygame.MOUSEMOTION:
                 if dragged_component:  # executam doar daca am dat click pe o piesa din worktable
@@ -207,15 +245,17 @@ def main():
             font = pygame.font.Font(None, 36)
             text = font.render("WIRE MODE: ON", True, (0, 255, 0))
             screen.blit(text, (src.settings.SIDEBAR_WIDTH + 10, 10))
-            
+
             font_small = pygame.font.Font(None, 20)
             inst_text = "Click 2 pini pentru conectare | W = exit"
-            inst_surf = font_small.render(inst_text, True, (255, 255, 255))  
-            
+            inst_surf = font_small.render(inst_text, True, (255, 255, 255))
+
             inst_rect = inst_surf.get_rect(topleft=(src.settings.SIDEBAR_WIDTH + 10, 50))
-            pygame.draw.rect(screen, (0, 0, 0), inst_rect.inflate(10, 5))  
+            pygame.draw.rect(screen, (0, 0, 0), inst_rect.inflate(10, 5))
             screen.blit(inst_surf, inst_rect)
 
+        if popup.active:
+            popup.draw(screen)
 
         pygame.display.flip()
         clock.tick(FPS)
