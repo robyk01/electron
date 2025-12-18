@@ -5,7 +5,10 @@ import src.settings
 from src.settings import FPS, TITLU, COLORS, GRID_SIZE
 
 # Importuri view si model
-from src.view.interface import draw_grid, draw_sidebar, draw_wires, draw_placed_components, VIEW_MENU_ITEMS
+from src.view.interface import (
+    draw_grid, draw_sidebar, draw_wires, draw_placed_components, 
+    VIEW_MENU_ITEMS, draw_simulation_results, SimulationButton
+)
 from src.model.circuit import Circuit
 from src.model.elements import Resistor, VoltageSource, Capacitor, Transistor
 from src.controller.connection import Connection
@@ -31,6 +34,28 @@ def main():
 
     my_circuit = Circuit()
     connection = Connection(my_circuit)
+
+    # simulation buttons
+    simulation_results = None
+    button_width = 150
+    button_height = 50
+    button_margin = 20
+    
+    simulate_button = SimulationButton(
+        src.settings.SIDEBAR_WIDTH + button_margin,
+        info_monitor.current_h - button_height - button_margin,
+        button_width,
+        button_height,
+        "SIMULARE"
+    )
+    
+    reset_button = SimulationButton(
+        src.settings.SIDEBAR_WIDTH + button_margin * 2 + button_width,
+        info_monitor.current_h - button_height - button_margin,
+        button_width,
+        button_height,
+        "RESET"
+    )
     # Count ca sa putem avea mai multe piese de acelasi tip cu rezistente si chestii diferite
     count_res = 1
     count_volt = 1
@@ -44,6 +69,11 @@ def main():
     running = True
 
     while running:
+        # add buttons
+        mouse_pos = pygame.mouse.get_pos()
+        simulate_button.update(mouse_pos)
+        reset_button.update(mouse_pos)
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -57,6 +87,27 @@ def main():
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:  # in pygame 1 e click stanga
                     mx, my = pygame.mouse.get_pos()
+
+                    if simulate_button.is_clicked(mouse_pos, True):
+                        print("\n" + "="*50)
+                        print("🔬 PORNIRE SIMULARE CIRCUIT")
+                        print("="*50)
+                        
+                        from src.model.solver import Solver
+                        solver = Solver(my_circuit)
+                        simulation_results = solver.solve()
+                        
+                        if simulation_results and simulation_results["success"]:
+                            print("\nSimulare reusita!")
+                        else:
+                            print(f"\nEroare: {simulation_results.get('error', 'Unknown')}")
+                            simulation_results = None
+                        continue
+                    
+                    if reset_button.is_clicked(mouse_pos, True):
+                        simulation_results = None
+                        print("\nSimulare resetata")
+                        continue
 
                     # check wire mode
                     if connection.wire_mode:
@@ -142,6 +193,14 @@ def main():
         draw_placed_components(screen, my_circuit, connection)
         draw_wires(screen, connection)
         draw_sidebar(screen)
+
+        # draw buttons
+        simulate_button.draw(screen)
+        reset_button.draw(screen)
+
+        # show simulation results
+        if simulation_results and simulation_results["success"]:
+            draw_simulation_results(screen, my_circuit, simulation_results)
 
         # wire mode visual indicator
         if connection.wire_mode:

@@ -34,3 +34,16 @@ class Transistor(Component):
 
     def __repr__(self):
         return f"Tranzistor {self.name} ({self.model_type})"
+    
+class Ground(Component):
+    def __init__(self, name, x, y):
+        super().__init__(name, x, y, pin_count=1)
+        self.img_name = "ground.png"
+
+        self.nodes[0] = 0
+    
+    def get_pin_positions(self):
+        return [(self.x, self.y + 20)]
+    
+    def __repr__(self):
+        return f"Ground {self.name}"
