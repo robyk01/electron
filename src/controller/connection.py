@@ -114,9 +114,17 @@ class Connection:
                 print(f"Deja conectate la același nod {node1}")
                 return False
 
+    def disconnect_component(self, component):
+        new_wires = []
+        for wire in self.wires:
+            c1, p1, c2, p2 = wire
+            # Pastram firul doar daca NU contine componenta noastra
+            if c1 != component and c2 != component:
+                new_wires.append(wire)
+            else:
+                print(f"DEBUG: Sters fir legat de {component.name}")
 
-
-
+        self.wires = new_wires
 
 
     

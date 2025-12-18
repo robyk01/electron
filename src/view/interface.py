@@ -41,6 +41,7 @@ def draw_grid(screen):
 
 
 def draw_sidebar(screen):
+    # Am scos parametrul 'selected_comp' pentru ca acum avem Popup!
     sb_width = src.settings.SIDEBAR_WIDTH
     sb_height = screen.get_height()
 
@@ -65,7 +66,6 @@ def draw_sidebar(screen):
             screen.blit(img, (icon_x, icon_y))
 
         text_surf = MENU_FONT.render(item["nume"], True, COLORS["TEXT_WHITE"])
-
         text_x = button_x + ICON_SIZE + 20
         text_y = button_y + (button_h - text_surf.get_height()) // 2
 
