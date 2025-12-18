@@ -82,6 +82,10 @@ class Connection:
         
     # create an electric connection between 2 pins
     def create_connection(self, comp1, pin1, comp2, pin2):
+        if comp1 == comp2:
+            print("Nu poti conecta pinii aceleiasi componente!")
+            return False
+        
         node1 = comp1.nodes[pin1]
         node2 = comp2.nodes[pin2]
 

@@ -8,12 +8,54 @@ class Solver:
 
     # solve the circuit using Nodal Analysis
     def solve(self):
+
+        voltage_sources = [c for c in self.circuit.components if isinstance(c, VoltageSource)]
+
+        if not voltage_sources:
+            return {
+                "success": False,
+                "error": "Circuit fara sursa de tensiune"
+            }
+        
+        # DEBUG: 
+        print("\nDEBUG: Noduri componente inainte de setare ground:")
+        for comp in self.circuit.components:
+            print(f"  {comp.name}: {comp.nodes}")
+
+        # add ground
+        first_battery = voltage_sources[0]
+
+        if first_battery.nodes[0] is None or first_battery.nodes[1] is None:
+            return {
+                "success": False,
+                "error": f"{first_battery.name} nu e complet conectata"
+            }
+        
+        old_ground_node = first_battery.nodes[0]
+        first_battery.nodes[0] = 0
+        self.circuit.active_nodes.add(0)
+
+        if old_ground_node is not None and old_ground_node != 0:
+            for comp in self.circuit.components:
+                for i in range(len(comp.nodes)):
+                    if comp.nodes[i] == old_ground_node:
+                        comp.nodes[i] = 0
+            
+            self.circuit.active_nodes.discard(old_ground_node)
+        
+        # DEBUG:
+        print("\nDEBUG: Noduri componente dupa setare ground:")
+        for comp in self.circuit.components:
+            print(f"  {comp.name}: {comp.nodes}")
+
         nodes = sorted(list(self.circuit.active_nodes - {0}))
         node_count = len(nodes)
 
         if node_count == 0:
-            print("Eroare: Nu exista noduri in circuit!")
-            return None
+            return {
+                "success": False,
+                "error": "Nu exista noduri in circuit (doar ground)!"
+            }
         
         # mapping for quick access
         node_to_index = {node: i for i, node in enumerate(nodes)}
@@ -83,19 +125,19 @@ class Solver:
         try:
             V_solution = np.linalg.solve(G_matrix, I_vector)
         except np.linalg.LinAlgError:
-            print("Eroare: Sistemul nu poate fi rezolvat!")
-            return None
+            return {
+                "success": False,
+                "error": "Sistemul nu poate fi rezolvat (matrice singulara)"
+            }
         
         print("\n--- Soluția V (tensiuni noduri) ---")
         print(V_solution)
 
         # save nodes tension
-        node_voltages = {}
+        node_voltages = {0: 0.0}
         for i, node_id in enumerate(nodes):
             node_voltages[node_id] = V_solution[i]
 
-        # ground node
-        node_voltages[0] = 0.0
 
         print("\n--- Tensiuni noduri ---")
         for node_id, voltage in sorted(node_voltages.items()):
@@ -122,23 +164,35 @@ class Solver:
             # for battery, the current is the sum of currents from the positive node (KCL)
             elif isinstance(component, VoltageSource):
                 node_pos = component.nodes[1]
+                node_neg = component.nodes[0]
 
-                if node_pos is None:
+                if node_pos is None or node_neg is None:
                     continue
 
                 total_current = 0.0
                 for other_comp in self.circuit.components:
+                    if other_comp == component:
+                            continue
+                    
                     if isinstance(other_comp, Resistor):
-                        if other_comp.nodes[0] == node_pos:
-                            v1 = node_voltages[node_pos]
-                            v2 = node_voltages[other_comp.nodes[1]]
-                            total_current += (v1 - v2) / other_comp.resistance
-                        elif other_comp.nodes[1] == node_pos:
-                            v1 = node_voltages[other_comp.nodes[0]]
-                            v2 = node_voltages[node_pos]
-                            total_current += (v1 - v2) / other_comp.resistance
+                        node1 = other_comp.nodes[0]
+                        node2 = other_comp.nodes[1]
+
+                        if node_pos not in [node1, node2]:
+                            continue
+                        
+                        v1 = node_voltages.get(node1, 0)
+                        v2 = node_voltages.get(node2, 0)
+                        i_res = (v1 - v2) / other_comp.resistance
+                        
+                        # current flows out of node_pos through nodes[1]
+                        if node1 == node_pos:
+                            total_current += i_res
+                        # current flows in node_pos through nodes[0]
+                        else:
+                            total_current -= i_res
                 
-                component_currents[component.uuid] = total_current
+                component_currents[component.uuid] = abs(total_current)
             
         print("\n--- Curenți componente ---")
         for component in self.circuit.components:
