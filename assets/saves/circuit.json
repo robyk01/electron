@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "components": [
+    {
+      "uuid": "ded7f3ea-560f-4844-aed1-39155f9326bd",
+      "type": "Resistor",
+      "name": "R1",
+      "x": 1000,
+      "y": 520,
+      "rotation": 0,
+      "resistance": 1000
+    },
+    {
+      "uuid": "23371bf7-7038-410b-b8aa-6253b90c0826",
+      "type": "Resistor",
+      "name": "R2",
+      "x": 880,
+      "y": 520,
+      "rotation": 0,
+      "resistance": 1000
+    },
+    {
+      "uuid": "ac2c3fb9-d8bc-48dc-8ec6-0cb217fb4dc6",
+      "type": "VoltageSource",
+      "name": "V1",
+      "x": 940,
+      "y": 580,
+      "rotation": 0,
+      "voltage": 9
+    }
+  ],
+  "wires": [
+    {
+      "a": "ac2c3fb9-d8bc-48dc-8ec6-0cb217fb4dc6",
+      "a_pin": 0,
+      "b": "23371bf7-7038-410b-b8aa-6253b90c0826",
+      "b_pin": 0
+    },
+    {
+      "a": "23371bf7-7038-410b-b8aa-6253b90c0826",
+      "a_pin": 1,
+      "b": "ded7f3ea-560f-4844-aed1-39155f9326bd",
+      "b_pin": 0
+    },
+    {
+      "a": "ac2c3fb9-d8bc-48dc-8ec6-0cb217fb4dc6",
+      "a_pin": 1,
+      "b": "ded7f3ea-560f-4844-aed1-39155f9326bd",
+      "b_pin": 1
+    }
+  ]
+}
