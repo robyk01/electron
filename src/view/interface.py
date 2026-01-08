@@ -95,18 +95,69 @@ def draw_placed_components(screen, circuit_obj, connection=None):
                     pygame.draw.circle(screen, (255, 255, 255), (int(px), int(py)), pin_radius - 2)
 
 
-def draw_wires(screen, connection):
+def _vec2(p):
+    return pygame.Vector2(float(p[0]), float(p[1]))
+
+# Draw moving dots from a -> b.
+def _draw_flow_particles_on_segment(screen, a, b, t_ms: int, color=(0, 220, 255), thickness=3):
+    a = _vec2(a)
+    b = _vec2(b)
+    seg = b - a
+    length = seg.length()
+    if length < 1:
+        return
+
+    speed_px_s = 180.0
+    dot_count = 8
+    dot_radius = 3
+    pad = 6.0 
+
+    usable = max(1.0, length - 2 * pad)
+    phase = ((t_ms / 1000.0) * speed_px_s / length) % 1.0
+    dirv = seg / length
+
+    for k in range(dot_count):
+        u = (k / dot_count + phase) % 1.0
+        dist = pad + u * usable
+        p = a + dirv * dist
+        pygame.draw.circle(screen, color, (int(p.x), int(p.y)), dot_radius)
+
+def draw_wires(screen, connection, results=None, t_ms: int = 0):
     if not connection:
         return
+    
     wire_color = (50, 50, 50)
     wire_thickness = 3
+
+    node_voltages = None
+    if results and isinstance(results, dict) and results.get("success"):
+        node_voltages = results.get("node_voltages", {})
 
     for comp1, pin1, comp2, pin2 in connection.wires:
         try:
             if comp1 in connection.circuit.components and comp2 in connection.circuit.components:
                 pos1 = comp1.get_pin_positions()[pin1]
                 pos2 = comp2.get_pin_positions()[pin2]
+
                 pygame.draw.line(screen, wire_color, pos1, pos2, wire_thickness)
+
+                if node_voltages is not None:
+                    n1 = comp1.nodes[pin1]
+                    n2 = comp2.nodes[pin2]
+                    if n1 is None or n2 is None:
+                        continue
+
+                    v1 = node_voltages.get(n1, 0.0)
+                    v2 = node_voltages.get(n2, 0.0)
+
+                    # direction: high V -> low V
+                    if v1 >= v2:
+                        a, b = pos1, pos2
+                    else:
+                        a, b = pos2, pos1
+
+                    # cyan flow particles
+                    _draw_flow_particles_on_segment(screen, a, b, t_ms, color=(0, 220, 255))
         except:
             continue
 

@@ -1,5 +1,6 @@
 import pygame
 import sys
+import os
 import src.settings
 from src.settings import FPS, TITLU, COLORS, GRID_SIZE
 
@@ -13,9 +14,15 @@ from src.model.circuit import Circuit
 from src.model.elements import Resistor, VoltageSource, Capacitor, Transistor
 from src.controller.connection import Connection
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+SAVE_DIR = os.path.join(BASE_DIR, "assets", "saves")
+SAVE_FILE = os.path.join(SAVE_DIR, "circuit.json")
 
 def main():
     pygame.init()
+
+    # ensure folder exists
+    os.makedirs(SAVE_DIR, exist_ok=True)
 
     info_monitor = pygame.display.Info()
     src.settings.SIDEBAR_WIDTH = int(info_monitor.current_w * 0.20)
@@ -99,6 +106,20 @@ def main():
                 elif event.key == pygame.K_r:
                     if dragged_component:
                         dragged_component.rotate()
+
+                elif event.key == pygame.K_s:
+                    from src.controller.circuit_load import save_circuit
+                    save_circuit(SAVE_FILE, my_circuit, connection)
+                    print(f"Saved circuit to {SAVE_FILE}")
+
+                elif event.key == pygame.K_l:
+                    from src.controller.circuit_load import load_circuit
+                    my_circuit, connection = load_circuit(SAVE_FILE)
+                    simulation_results = None
+                    dragged_component = None
+                    print(f"Loaded circuit from {SAVE_FILE}")
+
+
 
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
@@ -187,7 +208,7 @@ def main():
         screen.fill(COLORS["BACKGROUND"])
         draw_grid(screen)
         draw_placed_components(screen, my_circuit, connection)
-        draw_wires(screen, connection)
+        draw_wires(screen, connection, simulation_results, pygame.time.get_ticks())
         draw_sidebar(screen)
 
         simulate_button.draw(screen)
