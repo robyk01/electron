@@ -14,7 +14,6 @@ VIEW_MENU_ITEMS = [
     {"nume": "Baterie", "img": "baterie.png"},
     {"nume": "Capacitor", "img": "capacitor.png"},
     {"nume": "Tranzistor", "img": "tranzistor.png"},
-    # {"nume": "Fir Conex.", "img": "fir.png"},
 ]
 
 
@@ -98,7 +97,7 @@ def draw_placed_components(screen, circuit_obj, connection=None):
 def _vec2(p):
     return pygame.Vector2(float(p[0]), float(p[1]))
 
-# Draw moving dots from a -> b.
+
 def _draw_flow_particles_on_segment(screen, a, b, t_ms: int, color=(0, 220, 255), thickness=3):
     a = _vec2(a)
     b = _vec2(b)
@@ -110,7 +109,7 @@ def _draw_flow_particles_on_segment(screen, a, b, t_ms: int, color=(0, 220, 255)
     speed_px_s = 180.0
     dot_count = 8
     dot_radius = 3
-    pad = 6.0 
+    pad = 6.0
 
     usable = max(1.0, length - 2 * pad)
     phase = ((t_ms / 1000.0) * speed_px_s / length) % 1.0
@@ -122,10 +121,15 @@ def _draw_flow_particles_on_segment(screen, a, b, t_ms: int, color=(0, 220, 255)
         p = a + dirv * dist
         pygame.draw.circle(screen, color, (int(p.x), int(p.y)), dot_radius)
 
-def draw_wires(screen, connection, results=None, t_ms: int = 0):
+def draw_wires(screen, connection, results=None, t_ms: int = 0, active_wire_indices=None):
     if not connection:
         return
-    
+
+    # Daca lista e None (nu simulam), consideram toate firele inactive (sau active daca vrei comportament vechi)
+    # Aici le facem inactive implicit daca results exista, ca sa le aprindem pe rand
+    if active_wire_indices is None:
+        active_wire_indices = []  # Niciun fir nu e animat implicit
+
     wire_color = (50, 50, 50)
     wire_thickness = 3
 
@@ -133,7 +137,8 @@ def draw_wires(screen, connection, results=None, t_ms: int = 0):
     if results and isinstance(results, dict) and results.get("success"):
         node_voltages = results.get("node_voltages", {})
 
-    for comp1, pin1, comp2, pin2 in connection.wires:
+    # Folosim enumerate ca sa stim indexul firului (0, 1, 2...)
+    for i, (comp1, pin1, comp2, pin2) in enumerate(connection.wires):
         try:
             if comp1 in connection.circuit.components and comp2 in connection.circuit.components:
                 pos1 = comp1.get_pin_positions()[pin1]
@@ -141,7 +146,8 @@ def draw_wires(screen, connection, results=None, t_ms: int = 0):
 
                 pygame.draw.line(screen, wire_color, pos1, pos2, wire_thickness)
 
-                if node_voltages is not None:
+                # desenem animatia doar daca firul este in queue
+                if node_voltages is not None and i in active_wire_indices:
                     n1 = comp1.nodes[pin1]
                     n2 = comp2.nodes[pin2]
                     if n1 is None or n2 is None:
@@ -150,13 +156,11 @@ def draw_wires(screen, connection, results=None, t_ms: int = 0):
                     v1 = node_voltages.get(n1, 0.0)
                     v2 = node_voltages.get(n2, 0.0)
 
-                    # direction: high V -> low V
                     if v1 >= v2:
                         a, b = pos1, pos2
                     else:
                         a, b = pos2, pos1
 
-                    # cyan flow particles
                     _draw_flow_particles_on_segment(screen, a, b, t_ms, color=(0, 220, 255))
         except:
             continue

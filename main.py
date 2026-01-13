@@ -18,10 +18,29 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SAVE_DIR = os.path.join(BASE_DIR, "assets", "saves")
 SAVE_FILE = os.path.join(SAVE_DIR, "circuit.json")
 
+
+
+# gaseste toate firele conectate la un anumit pin al unei piese
+def find_wire_at_pin(wires, component, pin_idx):
+    found_wires = []
+    for idx, (c1, p1, c2, p2) in enumerate(wires):
+        if c1 == component and p1 == pin_idx:
+            # Firul pleaca din c1 spre c2
+            found_wires.append((idx, c2, p2))
+        elif c2 == component and p2 == pin_idx:
+            # Firul pleaca din c2 spre c1
+            found_wires.append((idx, c1, p1))
+    return found_wires
+
+
+def traverse_component(component, entry_pin):
+    if len(component.nodes) == 2:
+        return 1 - entry_pin
+    return None
+
+
 def main():
     pygame.init()
-
-    # ensure folder exists
     os.makedirs(SAVE_DIR, exist_ok=True)
 
     info_monitor = pygame.display.Info()
@@ -35,11 +54,16 @@ def main():
 
     my_circuit = Circuit()
     connection = Connection(my_circuit)
-
     popup = EditPopup(info_monitor.current_w, info_monitor.current_h)
 
-    # simulation buttons
+    active_wire_indices = []  # lista firlor aprinse
+    # unde suntem acum in circuit:
+    flow_cursors = []
+    last_anim_step_time = 0
+    ANIMATION_DELAY = 400
+
     simulation_results = None
+
     button_width = 150
     button_height = 50
     button_margin = 20
@@ -47,17 +71,13 @@ def main():
     simulate_button = SimulationButton(
         src.settings.SIDEBAR_WIDTH + button_margin,
         info_monitor.current_h - button_height - button_margin,
-        button_width,
-        button_height,
-        "SIMULARE"
+        button_width, button_height, "SIMULARE"
     )
 
     reset_button = SimulationButton(
         src.settings.SIDEBAR_WIDTH + button_margin * 2 + button_width,
         info_monitor.current_h - button_height - button_margin,
-        button_width,
-        button_height,
-        "RESET"
+        button_width, button_height, "RESET"
     )
 
     count_res = 1
@@ -70,7 +90,6 @@ def main():
     double_click_threshold = 500
     offset_x = 0
     offset_y = 0
-
     running = True
 
     while running:
@@ -78,6 +97,36 @@ def main():
         mouse_pos = pygame.mouse.get_pos()
         simulate_button.update(mouse_pos)
         reset_button.update(mouse_pos)
+
+        if simulation_results and flow_cursors:
+            if current_time - last_anim_step_time > ANIMATION_DELAY:
+                last_anim_step_time = current_time
+
+                # lista noua pentru urmatorii vecini
+                next_cursors = []
+
+                for comp, pin_out in flow_cursors:
+                    # Cautam firele conectate la pinul curent
+                    connected_wires = find_wire_at_pin(connection.wires, comp, pin_out)
+
+                    for wire_idx, neighbor_comp, neighbor_entry_pin in connected_wires:
+                        # Daca firul nu e aprins, il aprindem si il exploram
+                        if wire_idx not in active_wire_indices:
+                            active_wire_indices.append(wire_idx)
+
+                            # Traversarea piesei
+                            next_pin_out = traverse_component(neighbor_comp, neighbor_entry_pin)
+                            if next_pin_out is not None:
+                                next_cursors.append((neighbor_comp, next_pin_out))
+
+                            # ramanem si pe pinul de intrare, poate mai pleaca un fir de aici si nu e unul singur dintr-un nod
+                            next_cursors.append((neighbor_comp, neighbor_entry_pin))
+
+                # Actualizam cursorii
+                if next_cursors:
+                    flow_cursors = next_cursors
+                else:
+                    flow_cursors = []
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -102,24 +151,18 @@ def main():
                     running = False
                 elif event.key == pygame.K_w:
                     connection.toggle_wire_mode()
-
                 elif event.key == pygame.K_r:
-                    if dragged_component:
-                        dragged_component.rotate()
-
+                    if dragged_component: dragged_component.rotate()
                 elif event.key == pygame.K_s:
                     from src.controller.circuit_load import save_circuit
                     save_circuit(SAVE_FILE, my_circuit, connection)
                     print(f"Saved circuit to {SAVE_FILE}")
-
                 elif event.key == pygame.K_l:
                     from src.controller.circuit_load import load_circuit
                     my_circuit, connection = load_circuit(SAVE_FILE)
                     simulation_results = None
                     dragged_component = None
                     print(f"Loaded circuit from {SAVE_FILE}")
-
-
 
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
@@ -131,12 +174,34 @@ def main():
                             from src.model.solver import Solver
                             solver = Solver(my_circuit)
                             simulation_results = solver.solve()
+
+                            active_wire_indices = []
+                            flow_cursors = []
+
+                            if simulation_results and simulation_results.get("success"):
+                                # --- START STRICT: Cautam Bateriile ---
+                                found_battery = False
+                                for comp in my_circuit.components:
+                                    if isinstance(comp, VoltageSource):
+                                        # Pornim de la Baterie, Pinul 1 (Plus/Dreapta)
+                                        flow_cursors.append((comp, 1))
+                                        found_battery = True
+                                        print("Start de la Baterie!")
+
+                                if not found_battery:
+                                    print("Nu am gasit baterie. Nu pot anima fluxul.")
+                                    # Fallback: Aprindem tot daca nu e baterie, doar ca sa nu fie negru
+                                    active_wire_indices = list(range(len(connection.wires)))
+
                         except Exception as e:
                             print(f"Eroare solver: {e}")
                         continue
 
+                    # --- BUTON RESET ---
                     if reset_button.is_clicked(mouse_pos, True):
                         simulation_results = None
+                        active_wire_indices = []  # Stingem tot
+                        flow_cursors = []
                         print("Resetat.")
                         continue
 
@@ -174,7 +239,6 @@ def main():
                                     new_obj.rect = pygame.Rect(cx - 20, cy - 20, 40, 40)
                                     my_circuit.add_component(new_obj)
                             btn_y += 60
-
                     else:
                         for comp in reversed(my_circuit.components):
                             if hasattr(comp, 'rect') and comp.rect.collidepoint(mx, my):
@@ -182,7 +246,6 @@ def main():
                                     popup.open(comp)
                                     dragged_component = None
                                     break
-
                                 dragged_component = comp
                                 offset_x = comp.rect.x - mx
                                 offset_y = comp.rect.y - my
@@ -196,7 +259,6 @@ def main():
                     raw_y = my + offset_y
                     new_x = round(raw_x / GRID_SIZE) * GRID_SIZE
                     new_y = round(raw_y / GRID_SIZE) * GRID_SIZE
-
                     dragged_component.x = new_x + 20
                     dragged_component.y = new_y + 20
                     dragged_component.rect.x = new_x
@@ -208,9 +270,10 @@ def main():
         screen.fill(COLORS["BACKGROUND"])
         draw_grid(screen)
         draw_placed_components(screen, my_circuit, connection)
-        draw_wires(screen, connection, simulation_results, pygame.time.get_ticks())
-        draw_sidebar(screen)
 
+        draw_wires(screen, connection, simulation_results, pygame.time.get_ticks(), active_wire_indices)
+
+        draw_sidebar(screen)
         simulate_button.draw(screen)
         reset_button.draw(screen)
 
