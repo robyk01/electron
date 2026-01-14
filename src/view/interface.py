@@ -4,6 +4,9 @@ import src.settings
 from src.settings import COLORS, GRID_SIZE
 from src.model.base import Component
 
+from src.model.elements import Transistor
+
+
 pygame.font.init()
 MENU_FONT = pygame.font.SysFont("Arial", 24)
 
@@ -82,6 +85,10 @@ def draw_placed_components(screen, circuit_obj, connection=None):
             if connection and connection.wire_mode:
                 pin_positions = comp.get_pin_positions()
 
+                pin_labels = []
+                if isinstance(comp, Transistor):
+                    pin_labels = ["C", "B", "E"]
+
                 for i, (px, py) in enumerate(pin_positions):
                     pin_color = (255, 0, 0)  # red
                     pin_radius = 5
@@ -92,6 +99,11 @@ def draw_placed_components(screen, circuit_obj, connection=None):
 
                     pygame.draw.circle(screen, pin_color, (int(px), int(py)), pin_radius)
                     pygame.draw.circle(screen, (255, 255, 255), (int(px), int(py)), pin_radius - 2)
+
+                    if pin_labels and i < len(pin_labels):
+                        label_font = pygame.font.Font(None, 16)
+                        label = label_font.render(pin_labels[i], True, (255, 255, 255))
+                        screen.blit(label, (int(px) + 8, int(py) - 8))
 
 
 def _vec2(p):
@@ -125,17 +137,38 @@ def draw_wires(screen, connection, results=None, t_ms: int = 0, active_wire_indi
     if not connection:
         return
 
-    # Daca lista e None (nu simulam), consideram toate firele inactive (sau active daca vrei comportament vechi)
-    # Aici le facem inactive implicit daca results exista, ca sa le aprindem pe rand
-    if active_wire_indices is None:
-        active_wire_indices = []  # Niciun fir nu e animat implicit
-
     wire_color = (50, 50, 50)
     wire_thickness = 3
 
     node_voltages = None
+    component_currents = {}
+
     if results and isinstance(results, dict) and results.get("success"):
         node_voltages = results.get("node_voltages", {})
+        component_currents = results.get("component_currents", {})
+
+    if active_wire_indices is None and node_voltages is not None:
+        active_wire_indices = []
+        for i, (comp1, pin1, comp2, pin2) in enumerate(connection.wires):
+            # check if there is voltage difference across this wire
+            n1 = comp1.nodes[pin1] if pin1 < len(comp1.nodes) else None
+            n2 = comp2.nodes[pin2] if pin2 < len(comp2.nodes) else None
+            
+            if n1 is not None and n2 is not None:
+                v1 = node_voltages.get(n1, 0.0)
+                v2 = node_voltages.get(n2, 0.0)
+                
+                # check if components connected to this wire have current
+                current1 = abs(component_currents.get(comp1.uuid, 0))
+                current2 = abs(component_currents.get(comp2.uuid, 0))
+                
+                # animate if: voltage difference or component has current > 0.1mA
+                if abs(v1 - v2) > 0.01 or current1 > 0.0001 or current2 > 0.0001:
+                    active_wire_indices.append(i)
+
+    if active_wire_indices is None:
+        active_wire_indices = []
+
 
     # Folosim enumerate ca sa stim indexul firului (0, 1, 2...)
     for i, (comp1, pin1, comp2, pin2) in enumerate(connection.wires):
@@ -147,20 +180,22 @@ def draw_wires(screen, connection, results=None, t_ms: int = 0, active_wire_indi
                 pygame.draw.line(screen, wire_color, pos1, pos2, wire_thickness)
 
                 # desenem animatia doar daca firul este in queue
-                if node_voltages is not None and i in active_wire_indices:
+                if i in active_wire_indices:
                     n1 = comp1.nodes[pin1]
                     n2 = comp2.nodes[pin2]
                     if n1 is None or n2 is None:
                         continue
 
-                    v1 = node_voltages.get(n1, 0.0)
-                    v2 = node_voltages.get(n2, 0.0)
+                    v1 = node_voltages.get(n1, 0.0) if node_voltages else 0.0
+                    v2 = node_voltages.get(n2, 0.0) if node_voltages else 0.0
 
+                    # determine flow direction (high voltage to low)
+                    # if same voltage, use component current direction
                     if v1 >= v2:
                         a, b = pos1, pos2
                     else:
                         a, b = pos2, pos1
-
+                        
                     _draw_flow_particles_on_segment(screen, a, b, t_ms, color=(0, 220, 255))
         except:
             continue
@@ -222,8 +257,9 @@ def draw_simulation_results(screen, circuit, results):
     pygame.draw.rect(screen, (0, 0, 0), title_rect.inflate(20, 10))
     screen.blit(title, title_rect)
 
-    node_voltages = results["node_voltages"]
-    component_currents = results["component_currents"]
+    node_voltages = results.get("node_voltages", {})
+    component_currents = results.get("component_currents", {})
+    transistor_states = results.get("transistor_states", {}) 
 
     for comp in circuit.components:
         box_x = comp.x + 55
@@ -260,3 +296,20 @@ def draw_simulation_results(screen, circuit, results):
             text = font_data.render(line_text, True, line_color)
             screen.blit(text, (box_x, current_y))
             current_y += 22
+
+    from src.model.elements import Transistor
+    for comp in circuit.components:
+        if isinstance(comp, Transistor):
+            state = transistor_states.get(comp.uuid, False)
+
+            # green if ON, red if OFF
+            color = (0, 255, 0) if state else (255, 0, 0)
+            status_text = "ON" if state else "OFF"
+
+            font = pygame.font.Font(None, 24)
+            label = font.render(status_text, True, color)
+
+            label_rect = label.get_rect(center=(comp.rect.centerx, comp.rect.top - 25))
+            pygame.draw.rect(screen, (0, 0, 0), label_rect.inflate(10, 6))
+            
+            screen.blit(label, label_rect)
