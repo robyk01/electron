@@ -92,11 +92,24 @@ def main():
     offset_y = 0
     running = True
 
+    capacitor_discharge_active = False
+    discharge_start_time = 0
+    DISCHARGE_DURATION = 3000
+
     while running:
         current_time = pygame.time.get_ticks()
         mouse_pos = pygame.mouse.get_pos()
         simulate_button.update(mouse_pos)
         reset_button.update(mouse_pos)
+
+        if capacitor_discharge_active:
+            elapsed = current_time - discharge_start_time
+            if elapsed > DISCHARGE_DURATION:
+                # discharge finished - clear everything
+                capacitor_discharge_active = False
+                active_wire_indices = []
+                simulation_results = None
+                flow_cursors = []
 
         if simulation_results and flow_cursors:
             if current_time - last_anim_step_time > ANIMATION_DELAY:
@@ -199,10 +212,17 @@ def main():
 
                     # --- BUTON RESET ---
                     if reset_button.is_clicked(mouse_pos, True):
-                        simulation_results = None
-                        active_wire_indices = []  # Stingem tot
-                        flow_cursors = []
-                        print("Resetat.")
+                        has_capacitor = any(isinstance(c, Capacitor) for c in my_circuit.components)
+
+                        if has_capacitor and simulation_results and simulation_results.get("success"):
+                            # start discharge animation
+                            capacitor_discharge_active = True
+                            discharge_start_time = current_time
+                        else:
+                            simulation_results = None
+                            active_wire_indices = []  # Stingem tot
+                            flow_cursors = []
+                            print("Resetat.")
                         continue
 
                     if connection.wire_mode:
@@ -267,11 +287,13 @@ def main():
             elif event.type == pygame.MOUSEBUTTONUP:
                 dragged_component = None
 
+            
+
         screen.fill(COLORS["BACKGROUND"])
         draw_grid(screen)
         draw_placed_components(screen, my_circuit, connection)
 
-        draw_wires(screen, connection, simulation_results, pygame.time.get_ticks(), active_wire_indices)
+        draw_wires(screen, connection, simulation_results, pygame.time.get_ticks(), None)
 
         draw_sidebar(screen)
         simulate_button.draw(screen)
@@ -279,6 +301,19 @@ def main():
 
         if simulation_results and simulation_results["success"]:
             draw_simulation_results(screen, my_circuit, simulation_results)
+
+        # show discharge countdown
+        if capacitor_discharge_active:
+            elapsed = current_time - discharge_start_time
+            remaining = (DISCHARGE_DURATION - elapsed) / 1000.0
+            
+            font = pygame.font.Font(None, 48)
+            text = font.render(f"DISCHARGING... {remaining:.1f}s", True, (255, 200, 0))
+            text_rect = text.get_rect(center=(screen.get_width() // 2, 50))
+            
+            pygame.draw.rect(screen, (0, 0, 0), text_rect.inflate(30, 15))
+            pygame.draw.rect(screen, (255, 200, 0), text_rect.inflate(30, 15), 3)  
+            screen.blit(text, text_rect)
 
         if connection.wire_mode:
             font = pygame.font.Font(None, 36)
