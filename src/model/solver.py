@@ -1,5 +1,5 @@
 import numpy as np
-from src.model.elements import Resistor, VoltageSource, Transistor
+from src.model.elements import Resistor, VoltageSource, Transistor, Capacitor
 from src.model.circuit import Circuit
 
 class Solver:
@@ -73,31 +73,40 @@ class Solver:
                 if isinstance(component, Resistor):
                     node1 = component.nodes[0]
                     node2 = component.nodes[1]
+                    resistance = component.resistance
 
-                    if node1 is None or node2 is None:
-                        print(f"Avertisment: {component.name} nu e complet conectat!")
-                        continue
+                elif isinstance(component, Capacitor):
+                    node1 = component.nodes[0]
+                    node2 = component.nodes[1]
+                    resistance = 1e4
 
-                    # calculate conductance
-                    conductance = 1.0 / component.resistance
+                else: 
+                    continue
 
-                    if node1 != 0 and node2 != 0:
-                        idx1 = node_to_index[node1]
-                        idx2 = node_to_index[node2]
+                if node1 is None or node2 is None:
+                    print(f"Avertisment: {component.name} nu e complet conectat!")
+                    continue
 
-                        G_matrix[idx1, idx1] += conductance
-                        G_matrix[idx2, idx2] += conductance
+                # calculate conductance
+                conductance = 1.0 / resistance
 
-                        G_matrix[idx1, idx2] -= conductance
-                        G_matrix[idx2, idx1] -= conductance
+                if node1 != 0 and node2 != 0:
+                    idx1 = node_to_index[node1]
+                    idx2 = node_to_index[node2]
 
-                    elif node1 == 0 and node2 != 0:
-                        idx2 = node_to_index[node2]
-                        G_matrix[idx2, idx2] += conductance
+                    G_matrix[idx1, idx1] += conductance
+                    G_matrix[idx2, idx2] += conductance
 
-                    elif node1 != 0 and node2 == 0:
-                        idx1 = node_to_index[node1]
-                        G_matrix[idx1, idx1] += conductance
+                    G_matrix[idx1, idx2] -= conductance
+                    G_matrix[idx2, idx1] -= conductance
+
+                elif node1 == 0 and node2 != 0:
+                    idx2 = node_to_index[node2]
+                    G_matrix[idx2, idx2] += conductance
+
+                elif node1 != 0 and node2 == 0:
+                    idx1 = node_to_index[node1]
+                    G_matrix[idx1, idx1] += conductance
 
             for t in transistors:
                 if t.nodes[0] is None or t.nodes[2] is None:
@@ -272,6 +281,20 @@ class Solver:
                     current = 0.0
 
                 component_currents[component.uuid] = current
+
+            elif isinstance(component, Capacitor):
+                node1 = component.nodes[0]
+                node2 = component.nodes[1]
+
+                if node1 is None or node2 is None:
+                    continue
+
+                v1 = node_voltages[node1]
+                v2 = node_voltages[node2]
+
+                # current I = (V1 - V2) / 1e9 
+                current = (v1 - v2) / 1e9
+                component_currents[component.uuid] = abs(current)
 
 
             

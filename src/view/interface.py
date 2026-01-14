@@ -4,7 +4,7 @@ import src.settings
 from src.settings import COLORS, GRID_SIZE
 from src.model.base import Component
 
-from src.model.elements import Transistor
+from src.model.elements import Transistor, Capacitor
 
 
 pygame.font.init()
@@ -133,6 +133,7 @@ def _draw_flow_particles_on_segment(screen, a, b, t_ms: int, color=(0, 220, 255)
         p = a + dirv * dist
         pygame.draw.circle(screen, color, (int(p.x), int(p.y)), dot_radius)
 
+
 def draw_wires(screen, connection, results=None, t_ms: int = 0, active_wire_indices=None):
     if not connection:
         return
@@ -189,13 +190,25 @@ def draw_wires(screen, connection, results=None, t_ms: int = 0, active_wire_indi
                     v1 = node_voltages.get(n1, 0.0) if node_voltages else 0.0
                     v2 = node_voltages.get(n2, 0.0) if node_voltages else 0.0
 
+                    current1 = component_currents.get(comp1.uuid, 0)
+                    current2 = component_currents.get(comp2.uuid, 0)
+
                     # determine flow direction (high voltage to low)
                     # if same voltage, use component current direction
-                    if v1 >= v2:
-                        a, b = pos1, pos2
+                    if abs(v1 - v2) > 0.01:
+                        if v1 >= v2:
+                            a, b = pos1, pos2
+                        else:
+                            a, b = pos2, pos1
                     else:
-                        a, b = pos2, pos1
-                        
+                        # same voltage (ground connections)
+                        if current1 > 0.0001:
+                            a, b = pos1, pos2  
+                        elif current2 > 0.0001:
+                            a, b = pos2, pos1 
+                        else:
+                            a, b = pos1, pos2
+
                     _draw_flow_particles_on_segment(screen, a, b, t_ms, color=(0, 220, 255))
         except:
             continue
@@ -297,7 +310,8 @@ def draw_simulation_results(screen, circuit, results):
             screen.blit(text, (box_x, current_y))
             current_y += 22
 
-    from src.model.elements import Transistor
+
+    # show transistor status
     for comp in circuit.components:
         if isinstance(comp, Transistor):
             state = transistor_states.get(comp.uuid, False)
@@ -312,4 +326,15 @@ def draw_simulation_results(screen, circuit, results):
             label_rect = label.get_rect(center=(comp.rect.centerx, comp.rect.top - 25))
             pygame.draw.rect(screen, (0, 0, 0), label_rect.inflate(10, 6))
             
+            screen.blit(label, label_rect)
+
+    # show capacitor status
+    for comp in circuit.components:
+        if isinstance(comp, Capacitor):
+            font = pygame.font.Font(None, 22)
+            label = font.render("⚡ CHARGED", True, (0, 220, 255))
+            
+            label_rect = label.get_rect(center=(comp.rect.centerx, comp.rect.top - 25))
+            pygame.draw.rect(screen, (0, 0, 50), label_rect.inflate(10, 6))
+            pygame.draw.rect(screen, (0, 220, 255), label_rect.inflate(10, 6), 2)  # Border
             screen.blit(label, label_rect)
