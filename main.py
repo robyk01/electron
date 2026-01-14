@@ -192,25 +192,21 @@ def main():
                             flow_cursors = []
 
                             if simulation_results and simulation_results.get("success"):
-                                # --- START STRICT: Cautam Bateriile ---
                                 found_battery = False
                                 for comp in my_circuit.components:
                                     if isinstance(comp, VoltageSource):
-                                        # Pornim de la Baterie, Pinul 1 (Plus/Dreapta)
                                         flow_cursors.append((comp, 1))
                                         found_battery = True
                                         print("Start de la Baterie!")
 
                                 if not found_battery:
                                     print("Nu am gasit baterie. Nu pot anima fluxul.")
-                                    # Fallback: Aprindem tot daca nu e baterie, doar ca sa nu fie negru
                                     active_wire_indices = list(range(len(connection.wires)))
 
                         except Exception as e:
                             print(f"Eroare solver: {e}")
                         continue
 
-                    # --- BUTON RESET ---
                     if reset_button.is_clicked(mouse_pos, True):
                         has_capacitor = any(isinstance(c, Capacitor) for c in my_circuit.components)
 
@@ -293,8 +289,7 @@ def main():
         draw_grid(screen)
         draw_placed_components(screen, my_circuit, connection)
 
-        draw_wires(screen, connection, simulation_results, pygame.time.get_ticks(), None)
-
+        draw_wires(screen, connection, simulation_results, pygame.time.get_ticks(), active_wire_indices)
         draw_sidebar(screen)
         simulate_button.draw(screen)
         reset_button.draw(screen)

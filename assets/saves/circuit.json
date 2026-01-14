@@ -2,50 +2,71 @@
   "schema_version": 1,
   "components": [
     {
-      "uuid": "ded7f3ea-560f-4844-aed1-39155f9326bd",
-      "type": "Resistor",
-      "name": "R1",
-      "x": 1000,
-      "y": 520,
+      "uuid": "a891f16f-77ec-4bc4-8f56-377877248175",
+      "type": "Capacitor",
+      "name": "C1",
+      "x": 920,
+      "y": 440,
       "rotation": 0,
-      "resistance": 1000
+      "capacitance": 1e-05
     },
     {
-      "uuid": "23371bf7-7038-410b-b8aa-6253b90c0826",
-      "type": "Resistor",
-      "name": "R2",
-      "x": 880,
-      "y": 520,
-      "rotation": 0,
-      "resistance": 1000
-    },
-    {
-      "uuid": "ac2c3fb9-d8bc-48dc-8ec6-0cb217fb4dc6",
+      "uuid": "c24928aa-39c5-4c0f-bc24-dca0ae432e55",
       "type": "VoltageSource",
       "name": "V1",
-      "x": 940,
-      "y": 580,
-      "rotation": 0,
+      "x": 700,
+      "y": 360,
+      "rotation": 90,
       "voltage": 9
+    },
+    {
+      "uuid": "7f905db2-4c29-40cb-af16-b57a67249358",
+      "type": "Resistor",
+      "name": "R1",
+      "x": 1060,
+      "y": 340,
+      "rotation": 90,
+      "resistance": 1000
+    },
+    {
+      "uuid": "3c6ac0d6-484a-4c4e-b141-aa3b3cfcc06c",
+      "type": "Transistor",
+      "name": "Q1",
+      "x": 840,
+      "y": 220,
+      "rotation": 0,
+      "model_type": "NPN"
     }
   ],
   "wires": [
     {
-      "a": "ac2c3fb9-d8bc-48dc-8ec6-0cb217fb4dc6",
+      "a": "7f905db2-4c29-40cb-af16-b57a67249358",
       "a_pin": 0,
-      "b": "23371bf7-7038-410b-b8aa-6253b90c0826",
+      "b": "a891f16f-77ec-4bc4-8f56-377877248175",
+      "b_pin": 1
+    },
+    {
+      "a": "a891f16f-77ec-4bc4-8f56-377877248175",
+      "a_pin": 0,
+      "b": "c24928aa-39c5-4c0f-bc24-dca0ae432e55",
       "b_pin": 0
     },
     {
-      "a": "23371bf7-7038-410b-b8aa-6253b90c0826",
+      "a": "c24928aa-39c5-4c0f-bc24-dca0ae432e55",
       "a_pin": 1,
-      "b": "ded7f3ea-560f-4844-aed1-39155f9326bd",
-      "b_pin": 0
+      "b": "7f905db2-4c29-40cb-af16-b57a67249358",
+      "b_pin": 1
     },
     {
-      "a": "ac2c3fb9-d8bc-48dc-8ec6-0cb217fb4dc6",
-      "a_pin": 1,
-      "b": "ded7f3ea-560f-4844-aed1-39155f9326bd",
+      "a": "3c6ac0d6-484a-4c4e-b141-aa3b3cfcc06c",
+      "a_pin": 0,
+      "b": "c24928aa-39c5-4c0f-bc24-dca0ae432e55",
+      "b_pin": 1
+    },
+    {
+      "a": "3c6ac0d6-484a-4c4e-b141-aa3b3cfcc06c",
+      "a_pin": 2,
+      "b": "7f905db2-4c29-40cb-af16-b57a67249358",
       "b_pin": 1
     }
   ]
