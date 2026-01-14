@@ -293,7 +293,7 @@ def main():
         draw_grid(screen)
         draw_placed_components(screen, my_circuit, connection)
 
-        draw_wires(screen, connection, simulation_results, pygame.time.get_ticks(), active_wire_indices)
+        draw_wires(screen, connection, simulation_results, pygame.time.get_ticks(), None)
 
         draw_sidebar(screen)
         simulate_button.draw(screen)
@@ -308,7 +308,7 @@ def main():
             remaining = (DISCHARGE_DURATION - elapsed) / 1000.0
             
             font = pygame.font.Font(None, 48)
-            text = font.render(f"⚡ DISCHARGING... {remaining:.1f}s", True, (255, 200, 0))
+            text = font.render(f"DISCHARGING... {remaining:.1f}s", True, (255, 200, 0))
             text_rect = text.get_rect(center=(screen.get_width() // 2, 50))
             
             pygame.draw.rect(screen, (0, 0, 0), text_rect.inflate(30, 15))

@@ -165,7 +165,10 @@ def draw_wires(screen, connection, results=None, t_ms: int = 0, active_wire_indi
                 
                 # animate if: voltage difference or component has current > 0.1mA
                 if abs(v1 - v2) > 0.01 or current1 > 0.0001 or current2 > 0.0001:
+                    print(f"Wire {i} ACTIVE: {comp1.name}[{pin1}]→{comp2.name}[{pin2}], ΔV={abs(v1-v2):.3f}V, I1={current1*1000:.2f}mA, I2={current2*1000:.2f}mA")  # DEBUG
                     active_wire_indices.append(i)
+                else:
+                    print(f"Wire {i} SKIP: {comp1.name}[{pin1}]→{comp2.name}[{pin2}], ΔV={abs(v1-v2):.3f}V, I1={current1*1000:.2f}mA, I2={current2*1000:.2f}mA")  # DEBUG
 
     if active_wire_indices is None:
         active_wire_indices = []
@@ -195,19 +198,18 @@ def draw_wires(screen, connection, results=None, t_ms: int = 0, active_wire_indi
 
                     # determine flow direction (high voltage to low)
                     # if same voltage, use component current direction
-                    if abs(v1 - v2) > 0.01:
-                        if v1 >= v2:
-                            a, b = pos1, pos2
+                    if v1 > v2 + 0.001:  
+                        a, b = pos1, pos2
+                    elif v2 > v1 + 0.001:  
+                        a, b = pos2, pos1
+                    else:
+                        current1 = abs(component_currents.get(comp1.uuid, 0))
+                        current2 = abs(component_currents.get(comp2.uuid, 0))
+                        
+                        if current1 > current2:
+                            a, b = pos1, pos2  
                         else:
                             a, b = pos2, pos1
-                    else:
-                        # same voltage (ground connections)
-                        if current1 > 0.0001:
-                            a, b = pos1, pos2  
-                        elif current2 > 0.0001:
-                            a, b = pos2, pos1 
-                        else:
-                            a, b = pos1, pos2
 
                     _draw_flow_particles_on_segment(screen, a, b, t_ms, color=(0, 220, 255))
         except:
@@ -332,7 +334,7 @@ def draw_simulation_results(screen, circuit, results):
     for comp in circuit.components:
         if isinstance(comp, Capacitor):
             font = pygame.font.Font(None, 22)
-            label = font.render("⚡ CHARGED", True, (0, 220, 255))
+            label = font.render("CHARGED", True, (0, 220, 255))
             
             label_rect = label.get_rect(center=(comp.rect.centerx, comp.rect.top - 25))
             pygame.draw.rect(screen, (0, 0, 50), label_rect.inflate(10, 6))
